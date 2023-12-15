@@ -1,0 +1,37 @@
+{
+  "GetDTVService": {
+      "prefix": [
+          "nclGetDTVService"
+      ],
+      "body": [
+          "/**",
+          " * Função para obter informações do serviço DTV atual.",
+          " * ",
+          " * Faz uma chamada GET para a API e retorna um objeto JSON contendo:",
+          " * - serviceContextId: String",
+          " * - serviceName: String",
+          " * - transportStreamId: Number",
+          " * - originalNetworkId: Number",
+          " * - serviceId: Number",
+          " *",
+          " * @returns {Promise<Object>} Promise com os dados do serviço DTV.",
+          " */",
+          "function getCurrentDTVService() {",
+          "  return fetch('http://${1:<host>}/dtv/current-service')",
+          "    .then(response => {",
+          "      if (!response.ok) {",
+          "        throw new Error(`Erro na API: ${response.status}`);",
+          "      }",
+          "      return response.json();",
+          "    })",
+          "    .catch(error => {",
+          "      console.error('Falha ao obter dados do serviço DTV:', error);",
+          "      throw error;",
+          "    });",
+          "}",
+          "",
+      ],
+      "description": "Snippet para realizar uma chamada GET a uma API de serviço DTV e processar a resposta.",
+    "scope": "javascript,typescript"
+  }
+}

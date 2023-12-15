@@ -1,0 +1,43 @@
+{
+    "SelectDTVService": {
+        "prefix": [
+            "nclPostDTVService"
+        ],
+        "body": [
+            "/**",
+            " * Função para selecionar um serviço DTV específico.",
+            " * ",
+            " * Faz uma chamada POST para a API e retorna um objeto JSON com as informações detalhadas",
+            " * do serviço que acabou de ser selecionado.",
+            " *",
+            " * Possíveis Códigos de Erro:",
+            " * - 107: Acesso não local, accessToken omitido, inválido ou expirado.",
+            " * - 200: Impossibilidade de alocar o sintonizador de canais.",
+            " * - 302: Operação realizada, mas sem recepção de sinal DTV no canal correspondente.",
+            " * - 304: serviceContextId especificado não está na lista de canais do receptor.",
+            " *",
+            " * @param {String} serviceContextId - O ID do contexto do serviço a ser selecionado.",
+            " * @returns {Promise<Object>} Promessa que resolve com as informações do serviço selecionado.",
+            " */",
+            "function selectDTVService(serviceContextId) {",
+            "  return fetch(`http://${1:<host>}/dtv/${serviceContextId}`, { method: 'POST' })",
+            "    .then(response => {",
+            "      if (!response.ok) {",
+            "        throw new Error(`Erro na API: ${response.status}`);",
+            "      }",
+            "      return response.json();",
+            "    })",
+            "    .catch(error => {",
+            "      console.error('Falha ao selecionar o serviço DTV:', error);",
+            "      throw error;",
+            "    });",
+            "}",
+            "",
+            "// Exemplo de uso",
+            "selectDTVService('<service-context-id>')",
+            "  .then(data => console.log('Serviço DTV selecionado:', data))",
+            "  .catch(error => console.error('Erro:', error));"
+        ],
+        "description": "Snippet para realizar uma chamada POST a uma API de serviço DTV para selecionar um serviço específico."
+    }
+}

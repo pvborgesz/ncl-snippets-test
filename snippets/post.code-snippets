@@ -1,0 +1,80 @@
+{
+    "SelectDTVService": {
+        "prefix": [
+            "nclPostDTVService"
+        ],
+        "body": [
+            "/**",
+            " * Função para selecionar um serviço DTV específico.",
+            " * ",
+            " * Faz uma chamada POST para a API e retorna um objeto JSON com as informações detalhadas",
+            " * do serviço que acabou de ser selecionado.",
+            " *",
+            " * Possíveis Códigos de Erro:",
+            " * - 107: Acesso não local, accessToken omitido, inválido ou expirado.",
+            " * - 200: Impossibilidade de alocar o sintonizador de canais.",
+            " * - 302: Operação realizada, mas sem recepção de sinal DTV no canal correspondente.",
+            " * - 304: serviceContextId especificado não está na lista de canais do receptor.",
+            " *",
+            " * @param {String} serviceContextId - O ID do contexto do serviço a ser selecionado.",
+            " * @returns {Promise<Object>} Promessa que resolve com as informações do serviço selecionado.",
+            " */",
+            "function selectDTVService(serviceContextId) {",
+            "  return fetch(`http://${1:<host>}/dtv/${serviceContextId}`, { method: 'POST' })",
+            "    .then(response => {",
+            "      if (!response.ok) {",
+            "        throw new Error(`Erro na API: ${response.status}`);",
+            "      }",
+            "      return response.json();",
+            "    })",
+            "    .catch(error => {",
+            "      console.error('Falha ao selecionar o serviço DTV:', error);",
+            "      throw error;",
+            "    });",
+            "}",
+            "",
+            "// Exemplo de uso",
+            "selectDTVService('<service-context-id>')",
+            "  .then(data => console.log('Serviço DTV selecionado:', data))",
+            "  .catch(error => console.error('Erro:', error));"
+        ],
+        "description": "Snippet para realizar uma chamada POST a uma API de serviço DTV para selecionar um serviço específico."
+    },
+    {
+        "GetDTVService": {
+            "prefix": [
+                "nclGetDTVService"
+            ],
+            "body": [
+                "/**",
+                " * Função para obter informações do serviço DTV atual.",
+                " * ",
+                " * Faz uma chamada GET para a API e retorna um objeto JSON contendo:",
+                " * - serviceContextId: String",
+                " * - serviceName: String",
+                " * - transportStreamId: Number",
+                " * - originalNetworkId: Number",
+                " * - serviceId: Number",
+                " *",
+                " * @returns {Promise<Object>} Promise com os dados do serviço DTV.",
+                " */",
+                "function getCurrentDTVService() {",
+                "  return fetch('http://${1:<host>}/dtv/current-service')",
+                "    .then(response => {",
+                "      if (!response.ok) {",
+                "        throw new Error(`Erro na API: ${response.status}`);",
+                "      }",
+                "      return response.json();",
+                "    })",
+                "    .catch(error => {",
+                "      console.error('Falha ao obter dados do serviço DTV:', error);",
+                "      throw error;",
+                "    });",
+                "}",
+                "",
+            ],
+            "description": "Snippet para realizar uma chamada GET a uma API de serviço DTV e processar a resposta.",
+          "scope": "javascript,typescript"
+        }
+      }     
+}

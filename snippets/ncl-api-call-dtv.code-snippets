@@ -1,0 +1,42 @@
+{
+    "GetDTVServiceList": {
+        "prefix": [
+            "nclGetDTVServiceList"
+        ],
+        "body": [
+            "/**",
+            " * Função para obter a lista de todos os serviços DTV.",
+            " * ",
+            " * Faz uma chamada GET para a API e retorna um objeto JSON contendo:",
+            " * - serviceList: Array de objetos com:",
+            " *   - serviceContextId: String",
+            " *   - serviceName: String",
+            " *   - transportStreamId: Number",
+            " *   - originalNetworkId: Number",
+            " *   - serviceId: Number",
+            " *",
+            " * Possíveis Códigos de Erro:",
+            " * - 107: Acesso não local, accessToken omitido, inválido ou expirado.",
+            " * - 303: Lista de canais do receptor vazia.",
+            " *",
+            " * @returns {Promise<Object>} Promessa que resolve com a lista de serviços DTV.",
+            " */",
+            "function getDTVServiceList() {",
+            "  return fetch('http://${1:<host>}/dtv/service-list')",
+            "    .then(response => {",
+            "      if (!response.ok) {",
+            "        throw new Error(`Erro na API: ${response.status}`);",
+            "      }",
+            "      return response.json();",
+            "    })",
+            "    .catch(error => {",
+            "      console.error('Falha ao obter a lista de serviços DTV:', error);",
+            "      throw error;",
+            "    });",
+            "}",
+            "",
+
+        ],
+        "description": "Snippet para realizar uma chamada GET a uma API de serviço DTV e obter a lista de serviços."
+    }
+}
