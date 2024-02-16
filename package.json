@@ -16,7 +16,12 @@
       {
         "command": "nclsnippetsteste.helloWorld",
         "title": "Hello World"
-      }
+      },
+        {
+          "command": "catCoding.start",
+          "title": "Start new cat coding session",
+          "category": "Cat Coding"
+        }
     ],
     "snippets": [
       {

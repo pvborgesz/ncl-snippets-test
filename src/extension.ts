@@ -31,13 +31,13 @@ export function activate(context: vscode.ExtensionContext) {
 	let disposable = vscode.commands.registerCommand('nclsnippetsteste.helloWorld', () => {
 		vscode.window.showInformationMessage('Hello World from nclSnippetsTeste!');
 	});
-	let catCoding = vscode.commands.registerCommand('catCoding.start', () => {
-		vscode.window.showInformationMessage('Hello World from catCoding.start!');
+	let nclScreen = vscode.commands.registerCommand('nclScreen.start', () => {
+		vscode.window.showInformationMessage('Hello World from nclScreen.start!');
 	});
 
 	const panel = vscode.window.createWebviewPanel(
-		'catCoding', 
-		'Cat Coding', 
+		'nclScreen', 
+		'NCL Screen', 
 		vscode.ViewColumn.One, 
 		{
 			enableScripts: true,
@@ -59,7 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
 	  );
 
 	context.subscriptions.push(disposable);
-	context.subscriptions.push(catCoding);
+	context.subscriptions.push(nclScreen);
 }
 
 function getWebviewContent() {
@@ -69,13 +69,13 @@ function getWebviewContent() {
 		<meta charset="UTF-8">
 		<title>Parser NCL para HTML</title>
 		<style>
-			#mediaContainer {
+			#mediaContainer, #regionContainer {
 				position: relative;
 				width: 100%;
 				height: 500px;
 				border: 1px solid #ccc;
 			}
-			.media {
+			.media, .region {
 				position: absolute;
 				box-sizing: border-box;
 				border-radius: 10px;
@@ -85,20 +85,30 @@ function getWebviewContent() {
 				text-align: center;
 				overflow: hidden;
 				color: black;
-				font-family:  arial;
+				font-family: arial;
 				border: 2px solid black;
 				cursor: pointer; /* Estilo do cursor para indicar que o elemento é arrastável */
 			}
+
+			.region {
+                background-color: rgba(0, 0, 255, 0.2); /* Cor de fundo para regiões */
+            }
 		</style>
 	</head>
 	<body>
 	
 	<input type="file" id="fileInput">
 	<div id="mediaContainer"></div>
+
+
 	<button id="exportButton">Exportar NCL Modificado</button>
+	<button id="exportCSSButton">Exportar CSS</button>
+
 	
 	<script>
+
 	
+			
 		function updateNCLPositions(xmlDoc) {
 			document.querySelectorAll('.media').forEach(div => {
 				let media = xmlDoc.getElementById(div.id);
@@ -123,6 +133,7 @@ function getWebviewContent() {
 			});
 			return new XMLSerializer().serializeToString(xmlDoc);
 		}
+		
 		let xmlDoc;
 		document.getElementById('fileInput').addEventListener('change', function(event) {
 			let file = event.target.files[0];
@@ -138,6 +149,60 @@ function getWebviewContent() {
 				const colors = ['lightblue', 'lightgreen', 'lightcoral', 'lightyellow', 'lightgrey'];
 				let colorIndex = 0;
 	
+				function createRegionElement(region, maxWidth, maxHeight) {
+				let div = document.createElement('div');
+				let regionId = region.getAttribute('id');
+				div.id = regionId;
+				div.className = 'region';
+				div.textContent = regionId; 
+
+				// Calcular as dimensões relativas ou usar as absolutas
+				let width = parseInt(region.getAttribute('width'), 10);
+				let height = parseInt(region.getAttribute('height'), 10);
+
+				// Verifica se as dimensões são percentuais ou absolutas
+				if (isNaN(width) || isNaN(height)) { // Assume que 'width' e 'height' podem ser, por exemplo, '50%'
+					div.style.width = region.getAttribute('width') || '100%';
+					div.style.height = region.getAttribute('height') || '100%';
+				} else {
+					// Aqui você ajustaria as dimensões com base nas dimensões máximas, se necessário
+					// Isso requer que você tenha essas dimensões máximas disponíveis
+					// Por simplicidade, vamos apenas atribuir os valores diretamente
+					div.style.width = (width / maxWidth) * 100 + '%';
+					div.style.height = (height / maxHeight) * 100 + '%';
+				}
+
+				div.style.zIndex = region.getAttribute('zIndex') || '1';
+				
+				div.addEventListener('mousedown', onDragStart);
+				
+				return div;
+			}
+
+			function initializeLayout(regionsData) {
+				let maxWidth = window.innerWidth; // ou algum outro valor base
+				let maxHeight = window.innerHeight; // ou algum outro valor base
+			
+				// Verifica se há regiões definidas
+				if (!regionsData || regionsData.length === 0) {
+					let fallbackRegion = document.createElement('div');
+					fallbackRegion.id = 'fallbackRegion';
+					fallbackRegion.className = 'region';
+					fallbackRegion.textContent = 'Fallback Region';
+					fallbackRegion.style.width = '100%';
+					fallbackRegion.style.height = '100%';
+					fallbackRegion.style.zIndex = 0;
+					
+					let regionElement = createRegionElement(fallbackRegion, maxWidth, maxHeight);
+					document.body.appendChild(regionElement); // Ou adicione ao seu container de regiões
+				} else {
+					regionsData.forEach(regionData => {
+						let regionElement = createRegionElement(regionData, maxWidth, maxHeight);
+						document.body.appendChild(regionElement); // Ou adicione ao seu container de regiões
+					});
+				}
+			}
+
 				function createMediaElement(media) {
 					let div = document.createElement('div');
 					let mediaId = media.getAttribute('id');
@@ -162,7 +227,7 @@ function getWebviewContent() {
 						div.style[name] = value;
 					});
 	
-					// Adicionar funcionalidades de arrasto
+
 					div.addEventListener('mousedown', onDragStart);
 	
 					return div;
@@ -203,11 +268,53 @@ function getWebviewContent() {
 					document.addEventListener('mousemove', onDrag);
 					mediaDiv.addEventListener('mouseup', onDragEnd);
 				}
+				function onDragStartRegion(event) {
+					let regionDiv = event.target.closest('.region');
+					if (!regionDiv) return;
+	
+					let shiftX = event.clientX - regionDiv.getBoundingClientRect().left;
+					let shiftY = event.clientY - regionDiv.getBoundingClientRect().top;
+	
+					regionDiv.style.position = 'absolute';
+					regionDiv.style.zIndex = 1000;
+					document.body.append(regionDiv);
+	
+					moveAt(event.pageX, event.pageY);
+	
+					function moveAt(pageX, pageY) {
+						regionDiv.style.left = pageX - shiftX + 'px';
+						regionDiv.style.top = pageY - shiftY + 'px';
+					}
+	
+					function onDrag(event) {
+						moveAt(event.pageX, event.pageY);
+					}
+	
+					function onDragEnd() {
+						document.removeEventListener('mousemove', onDrag);
+						regionDiv.removeEventListener('mouseup', onDragEnd);
+	
+						// Armazena as novas posições
+						let rect = regionDiv.getBoundingClientRect();
+						regionDiv.dataset.finalLeft = rect.left - mediaContainer.getBoundingClientRect().left;
+						regionDiv.dataset.finalTop = rect.top - mediaContainer.getBoundingClientRect().top;
+					}
+	
+					document.addEventListener('mousemove', onDrag);
+					regionDiv.addEventListener('mouseup', onDragEnd);
+				}
 	
 				xmlDoc.querySelectorAll('media').forEach(media => {
 					let mediaDiv = createMediaElement(media);
 					document.getElementById('mediaContainer').appendChild(mediaDiv);
 				});
+
+				// xmlDoc.querySelectorAll('regionBase > region').forEach(regionCurr => {
+				// 	let regionDiv = createRegionElement(regionCurr);
+				// 	document.getElementById('regionContainer').appendChild(regionDiv);
+				// });
+
+				initializeLayout(xmlDoc.querySelectorAll('regionBase > region'));
 			};
 	
 			reader.readAsText(file);
