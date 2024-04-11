@@ -63,7 +63,8 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 function getWebviewContent() {
-	return `<!DOCTYPE html>
+	return `
+	<!DOCTYPE html>
 	<html lang="pt">
 	<head>
 		<meta charset="UTF-8">
@@ -149,35 +150,51 @@ function getWebviewContent() {
 				const colors = ['lightblue', 'lightgreen', 'lightcoral', 'lightyellow', 'lightgrey'];
 				let colorIndex = 0;
 	
-				function createRegionElement(region, maxWidth, maxHeight) {
-				let div = document.createElement('div');
-				let regionId = region.getAttribute('id');
-				div.id = regionId;
-				div.className = 'region';
-				div.textContent = regionId; 
-
-				// Calcular as dimensões relativas ou usar as absolutas
-				let width = parseInt(region.getAttribute('width'), 10);
-				let height = parseInt(region.getAttribute('height'), 10);
-
-				// Verifica se as dimensões são percentuais ou absolutas
-				if (isNaN(width) || isNaN(height)) { // Assume que 'width' e 'height' podem ser, por exemplo, '50%'
-					div.style.width = region.getAttribute('width') || '100%';
-					div.style.height = region.getAttribute('height') || '100%';
-				} else {
-					// Aqui você ajustaria as dimensões com base nas dimensões máximas, se necessário
-					// Isso requer que você tenha essas dimensões máximas disponíveis
-					// Por simplicidade, vamos apenas atribuir os valores diretamente
-					div.style.width = (width / maxWidth) * 100 + '%';
-					div.style.height = (height / maxHeight) * 100 + '%';
+				function createRegionElement(region, maxWidth, maxHeight, parentDiv = document.body) {
+					let div = document.createElement('div');
+					let regionId = region.getAttribute('id');
+					div.id = regionId;
+					div.className = 'region';
+					div.textContent = regionId;
+				
+					// Calcular as dimensões relativas ou usar as absolutas
+					let width = parseInt(region.getAttribute('width'), 10);
+					let height = parseInt(region.getAttribute('height'), 10);
+					let actualWidth, actualHeight;
+				
+					// Verifica se as dimensões são percentuais ou absolutas
+					if (isNaN(width) || isNaN(height)) { // Assume que 'width' e 'height' podem ser, por exemplo, '50%'
+						div.style.width = region.getAttribute('width') || '100%';
+						div.style.height = region.getAttribute('height') || '100%';
+						actualWidth = maxWidth * (parseFloat(region.getAttribute('width')) / 100) || maxWidth;
+						actualHeight = maxHeight * (parseFloat(region.getAttribute('height')) / 100) || maxHeight;
+					} else {
+						// Ajusta as dimensões com base nas dimensões máximas ou do parentDiv, se necessário
+						let computedWidth = maxWidth ? (width / maxWidth) * 100 + '%' : width + 'px';
+						let computedHeight = maxHeight ? (height / maxHeight) * 100 + '%' : height + 'px';
+						div.style.width = computedWidth;
+						div.style.height = computedHeight;
+						// Convertendo as dimensões computadas de volta para valores absolutos (em pixels) para uso nas regiões filhas
+						actualWidth = maxWidth ? (width / 100) * maxWidth : width;
+						actualHeight = maxHeight ? (height / 100) * maxHeight : height;
+					}
+				
+					div.style.zIndex = region.getAttribute('zIndex') || '1';
+				
+					div.addEventListener('mousedown', onDragStart);
+				
+					parentDiv.appendChild(div); // Adiciona a região ao elemento pai
+				
+					// Verifica se a região atual possui regiões filhas e as cria recursivamente
+					region.querySelectorAll('region').forEach(childRegion => {
+						// Ajusta maxWidth e maxHeight para serem as dimensões da região pai em pixels
+						createRegionElement(childRegion, actualWidth, actualHeight, div);
+					});
+				
+					return div;
 				}
-
-				div.style.zIndex = region.getAttribute('zIndex') || '1';
 				
-				div.addEventListener('mousedown', onDragStart);
 				
-				return div;
-			}
 
 			function initializeLayout(regionsData) {
 				let maxWidth = window.innerWidth; // ou algum outro valor base
@@ -227,9 +244,15 @@ function getWebviewContent() {
 						div.style[name] = value;
 					});
 	
-
+					let regionId = media.getAttribute('region');
+    				let regionDiv = document.getElementById(regionId);
+					if (regionDiv) {
+						regionDiv.appendChild(div);
+					} else {
+						document.getElementById('mediaContainer').appendChild(div);
+					}
 					div.addEventListener('mousedown', onDragStart);
-	
+					
 					return div;
 				}
 	
@@ -268,6 +291,7 @@ function getWebviewContent() {
 					document.addEventListener('mousemove', onDrag);
 					mediaDiv.addEventListener('mouseup', onDragEnd);
 				}
+				
 				function onDragStartRegion(event) {
 					let regionDiv = event.target.closest('.region');
 					if (!regionDiv) return;

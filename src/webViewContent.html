@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Parser NCL para HTML</title>
+    <style>
+        #fileInput {
+            position: relative;
+            /* Garantir que z-index seja aplicável */
+            z-index: 10;
+            /* Um valor alto para garantir que está acima de outros elementos */
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #mainRegion {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #regionContainer {
+            position: relative;
+            width: 100%;
+            height: 90%;
+            overflow: auto;
+            background-color: #f0f0f0;
+        }
+
+        .region {
+            position: absolute;
+            border: 2px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background-color: rgba(0, 0, 255, 0.2);
+            cursor: pointer;
+        }
+
+        .baseRegion {
+            position: absolute;
+            border: 2px solid #000;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            overflow: hidden;
+            background-color: rgba(0, 0, 255, 0.1);
+            /* Slight blue background for visibility */
+        }
+
+        .media {
+            border: 1px solid #444;
+            background-color: #eaeaea;
+            padding: 5px;
+            text-align: center;
+            overflow: hidden;
+            resize: both;
+            z-index: 2;
+        }
+    </style>
+</head>
+
+<body>
+    <input type="file" id="fileInput">
+    <div id="mainRegion">
+        <div id="regionContainer"></div>
+    </div>
+    <button id="exportButton">Exportar NCL Modificado</button>
+    <button id="exportCSSButton">Exportar CSS</button>
+
+    <script>
+        let xmlDoc; // Variável global para armazenar o documento XML
+
+        document.getElementById('fileInput').addEventListener('change', function (event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const nclString = e.target.result;
+                const parser = new DOMParser();
+                xmlDoc = parser.parseFromString(nclString, "text/xml");
+
+                if (xmlDoc.documentElement.nodeName === "parsererror") {
+                    console.error("Erro no parsing do XML: ", xmlDoc.documentElement.textContent);
+                    return;
+                }
+
+                initializeLayout(xmlDoc.querySelectorAll('regionBase > region'));
+            };
+
+            reader.readAsText(file);
+        });
+
+        function initializeLayout(regionsData) {
+            const regionContainer = document.getElementById('regionContainer');
+            regionContainer.innerHTML = '';  // Limpar antes de adicionar novos elementos
+
+            let maxDimensions = { width: 0, height: 0 };
+
+            // Primeiro passo: Encontrar as dimensões máximas
+            regionsData.forEach(region => {
+                const width = parseInt(region.getAttribute('width'), 10);
+                const height = parseInt(region.getAttribute('height'), 10);
+                if (width > maxDimensions.width) maxDimensions.width = width;
+                if (height > maxDimensions.height) maxDimensions.height = height;
+            });
+
+            // Segundo passo: Criar as regiões com as dimensões escaladas
+            regionsData.forEach(region => {
+                const regionElement = createRegionElement(region, maxDimensions.width, maxDimensions.height);
+                regionContainer.appendChild(regionElement);
+            });
+        }
+
+
+        function createBaseRegion() {
+            const regionContainer = document.getElementById('regionContainer');
+            const baseRegion = document.createElement('div');
+            baseRegion.className = 'baseRegion';
+            baseRegion.style.width = '100%';
+            baseRegion.style.height = '100%';
+            baseRegion.style.zIndex = '0'; // Make sure it's below all other content
+            regionContainer.appendChild(baseRegion);
+        }
+
+        function initializeLayout(regionsData) {
+            const regionContainer = document.getElementById('regionContainer');
+            regionContainer.innerHTML = ''; // Clear the container before adding new elements
+            createBaseRegion(); // Create the base region covering 100% of the container
+
+            regionsData.forEach(region => {
+                const regionElement = createRegionElement(region);
+                regionContainer.appendChild(regionElement);
+                region.querySelectorAll('region').forEach(subRegion => {
+                    const subRegionElement = createRegionElement(subRegion, regionElement.clientWidth, regionElement.clientHeight, regionElement);
+                    regionElement.appendChild(subRegionElement);
+                });
+            });
+        }
+
+        function createRegionElement(region, maxWidth = window.innerWidth, maxHeight = window.innerHeight, parentDiv = document.getElementById('regionContainer')) {
+            const div = document.createElement('div');
+            div.id = region.getAttribute('id');
+            div.className = 'region';
+            div.textContent = region.getAttribute('id'); // Optional text content
+
+            const width = region.getAttribute('width') || '80%';
+            const height = region.getAttribute('height') || '80%';
+            div.style.width = isNaN(parseInt(width)) ? width : `${(parseInt(width) / maxWidth * 80)}%`;
+            div.style.height = isNaN(parseInt(height)) ? height : `${(parseInt(height) / maxHeight * 80)}%`;
+
+            div.style.zIndex = region.getAttribute('zIndex') || '1';
+            div.addEventListener('mousedown', onDragStart);
+
+            return div;
+        }
+
+        function onDragStart(event) {
+            const element = event.target.closest('.region, .media');
+            const startX = event.clientX;
+            const startY = event.clientY;
+            const origX = parseInt(element.style.left, 10) || 0;
+            const origY = parseInt(element.style.top, 10) || 0;
+
+            function onDrag(event) {
+                const deltaX = event.clientX - startX;
+                const deltaY = event.clientY - startY;
+                element.style.left = `${origX + deltaX}px`;
+                element.style.top = `${origY + deltaY}px`;
+            }
+
+            function onDragEnd() {
+                document.removeEventListener('mousemove', onDrag);
+                document.removeEventListener('mouseup', onDragEnd);
+                element.dataset.finalLeft = element.style.left;
+                element.dataset.finalTop = element.style.top;
+            }
+
+            document.addEventListener('mousemove', onDrag);
+            document.addEventListener('mouseup', onDragEnd);
+        }
+
+        document.getElementById('exportButton').addEventListener('click', () => {
+            if (!xmlDoc) {
+                console.error('Nenhum documento XML carregado.');
+                return;
+            }
+            const updatedNCL = updateNCLPositions(xmlDoc);
+            download('modified.ncl', updatedNCL);
+        });
+
+        function updateNCLPositions(xmlDoc) {
+            document.querySelectorAll('.region, .media').forEach(element => {
+                const xmlElement = xmlDoc.getElementById(element.id);
+                if (xmlElement) {
+                    updateProperty(xmlElement, 'left', element.style.left);
+                    updateProperty(xmlElement, 'top', element.style.top);
+                }
+            });
+            return new XMLSerializer().serializeToString(xmlDoc);
+        }
+
+        function updateProperty(element, propName, value) {
+            let prop = element.querySelector(`property[name="${propName}"]`);
+            if (!prop) {
+                prop = xmlDoc.createElement('property');
+                prop.setAttribute('name', propName);
+                element.appendChild(prop);
+            }
+            prop.setAttribute('value', value);
+        }
+
+        function download(filename, text) {
+            const element = document.createElement('a');
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+            element.setAttribute('download', filename);
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+    </script>
+</body>
+
+</html>
