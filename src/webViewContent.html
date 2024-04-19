@@ -80,118 +80,85 @@
     </div>
     <button id="exportButton">Exportar NCL Modificado</button>
     <button id="exportCSSButton">Exportar CSS</button>
-
     <script>
         let xmlDoc; // Variável global para armazenar o documento XML
 
         document.getElementById('fileInput').addEventListener('change', function (event) {
             const file = event.target.files[0];
-            if (!file) return;
+            if (!file) {
+                alert("Por favor, selecione um arquivo.");
+                return;
+            }
 
             const reader = new FileReader();
             reader.onload = function (e) {
-                const nclString = e.target.result;
-                const parser = new DOMParser();
-                xmlDoc = parser.parseFromString(nclString, "text/xml");
+                try {
+                    const nclString = e.target.result;
+                    const parser = new DOMParser();
+                    xmlDoc = parser.parseFromString(nclString, "application/xml");
 
-                if (xmlDoc.documentElement.nodeName === "parsererror") {
-                    console.error("Erro no parsing do XML: ", xmlDoc.documentElement.textContent);
-                    return;
+                    if (xmlDoc.getElementsByTagName("parsererror").length) {
+                        throw new Error("Erro de parsing do XML.");
+                    }
+
+                    // Inicializar o layout com a base de regiões encontradas
+                    initializeLayout(xmlDoc.querySelector('regionBase'));
+                } catch (error) {
+                    console.error("Erro no parsing do XML: ", error.message);
                 }
-
-                initializeLayout(xmlDoc.querySelectorAll('regionBase > region'));
             };
-
             reader.readAsText(file);
         });
 
-        function initializeLayout(regionsData) {
+        function initializeLayout(regionBase) {
             const regionContainer = document.getElementById('regionContainer');
-            regionContainer.innerHTML = '';  // Limpar antes de adicionar novos elementos
+            regionContainer.innerHTML = ''; // Limpar contêiner antes de adicionar novos elementos
 
-            let maxDimensions = { width: 0, height: 0 };
-
-            // Primeiro passo: Encontrar as dimensões máximas
-            regionsData.forEach(region => {
-                const width = parseInt(region.getAttribute('width'), 10);
-                const height = parseInt(region.getAttribute('height'), 10);
-                if (width > maxDimensions.width) maxDimensions.width = width;
-                if (height > maxDimensions.height) maxDimensions.height = height;
-            });
-
-            // Segundo passo: Criar as regiões com as dimensões escaladas
-            regionsData.forEach(region => {
-                const regionElement = createRegionElement(region, maxDimensions.width, maxDimensions.height);
-                regionContainer.appendChild(regionElement);
-            });
+            if (!regionBase) return;
+            createRegionsDynamically(regionBase, regionContainer);
         }
 
+        function createRegionsDynamically(regionElement, parentDiv) {
+            const regions = regionElement.querySelectorAll('region');
+            regions.forEach(region => {
+                const div = document.createElement('div');
+                div.id = region.getAttribute('id');
+                div.className = 'region';
+                div.style.width = region.getAttribute('width');
+                div.style.height = region.getAttribute('height');
+                div.style.position = 'absolute';
+                div.style.zIndex = region.getAttribute('zIndex') || 1;
+                div.textContent = region.getAttribute('id'); // Para visualização
 
-        function createBaseRegion() {
-            const regionContainer = document.getElementById('regionContainer');
-            const baseRegion = document.createElement('div');
-            baseRegion.className = 'baseRegion';
-            baseRegion.style.width = '100%';
-            baseRegion.style.height = '100%';
-            baseRegion.style.zIndex = '0'; // Make sure it's below all other content
-            regionContainer.appendChild(baseRegion);
-        }
+                parentDiv.appendChild(div);
+                addDraggable(div); // Adiciona funcionalidade de arrasto
 
-        function initializeLayout(regionsData) {
-            const regionContainer = document.getElementById('regionContainer');
-            regionContainer.innerHTML = ''; // Clear the container before adding new elements
-            createBaseRegion(); // Create the base region covering 100% of the container
-
-            regionsData.forEach(region => {
-                const regionElement = createRegionElement(region);
-                regionContainer.appendChild(regionElement);
-                region.querySelectorAll('region').forEach(subRegion => {
-                    const subRegionElement = createRegionElement(subRegion, regionElement.clientWidth, regionElement.clientHeight, regionElement);
-                    regionElement.appendChild(subRegionElement);
-                });
+                // Recursivamente criar regiões filhas
+                if (region.children.length > 0) {
+                    createRegionsDynamically(region, div);
+                }
             });
         }
 
-        function createRegionElement(region, maxWidth = window.innerWidth, maxHeight = window.innerHeight, parentDiv = document.getElementById('regionContainer')) {
-            const div = document.createElement('div');
-            div.id = region.getAttribute('id');
-            div.className = 'region';
-            div.textContent = region.getAttribute('id'); // Optional text content
+        function addDraggable(element) {
+            element.onmousedown = function (event) {
+                event.preventDefault();
+                const offsetX = event.clientX - element.getBoundingClientRect().left;
+                const offsetY = event.clientY - element.getBoundingClientRect().top;
 
-            const width = region.getAttribute('width') || '80%';
-            const height = region.getAttribute('height') || '80%';
-            div.style.width = isNaN(parseInt(width)) ? width : `${(parseInt(width) / maxWidth * 80)}%`;
-            div.style.height = isNaN(parseInt(height)) ? height : `${(parseInt(height) / maxHeight * 80)}%`;
+                function onMouseMove(event) {
+                    element.style.left = `${event.clientX - offsetX}px`;
+                    element.style.top = `${event.clientY - offsetY}px`;
+                }
 
-            div.style.zIndex = region.getAttribute('zIndex') || '1';
-            div.addEventListener('mousedown', onDragStart);
+                function onMouseUp() {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                }
 
-            return div;
-        }
-
-        function onDragStart(event) {
-            const element = event.target.closest('.region, .media');
-            const startX = event.clientX;
-            const startY = event.clientY;
-            const origX = parseInt(element.style.left, 10) || 0;
-            const origY = parseInt(element.style.top, 10) || 0;
-
-            function onDrag(event) {
-                const deltaX = event.clientX - startX;
-                const deltaY = event.clientY - startY;
-                element.style.left = `${origX + deltaX}px`;
-                element.style.top = `${origY + deltaY}px`;
-            }
-
-            function onDragEnd() {
-                document.removeEventListener('mousemove', onDrag);
-                document.removeEventListener('mouseup', onDragEnd);
-                element.dataset.finalLeft = element.style.left;
-                element.dataset.finalTop = element.style.top;
-            }
-
-            document.addEventListener('mousemove', onDrag);
-            document.addEventListener('mouseup', onDragEnd);
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            };
         }
 
         document.getElementById('exportButton').addEventListener('click', () => {
@@ -204,7 +171,7 @@
         });
 
         function updateNCLPositions(xmlDoc) {
-            document.querySelectorAll('.region, .media').forEach(element => {
+            document.querySelectorAll('.region').forEach(element => {
                 const xmlElement = xmlDoc.getElementById(element.id);
                 if (xmlElement) {
                     updateProperty(xmlElement, 'left', element.style.left);
@@ -234,6 +201,7 @@
             document.body.removeChild(element);
         }
     </script>
+
 </body>
 
 </html>
