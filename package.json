@@ -9,42 +9,37 @@
   "categories": [
     "Other"
   ],
-  "activationEvents": [],
+  "activationEvents": [
+    "onCommand:nclsnippetsteste.helloWorld",
+    "onCommand:nclScreen.start"
+  ],
   "main": "./dist/extension.js",
   "contributes": {
-    "commands": [
-      {
-        "command": "nclsnippetsteste.helloWorld",
-        "title": "Hello World"
-      },
-        {
-          "command": "catCoding.start",
-          "title": "Start new cat coding session",
-          "category": "Cat Coding"
-        }
-    ],
+      "commands": [
+          {
+              "command": "nclScreen.start",
+              "title": "Start new ncl screen",
+              "category": "Ncl"
+          }
+      ],
     "snippets": [
       {
-
-          "language": "javascript",
-          "path": "./snippets/snippets.code-snippets"
+        "language": "javascript",
+        "path": "./snippets/snippets.code-snippets"
       },
       {
-
-          "language": "javascript",
-          "path": "./snippets/ncl-api-call.code-snippets"
+        "language": "javascript",
+        "path": "./snippets/ncl-api-call.code-snippets"
       },
       {
-
-          "language": "javascript",
-          "path": "./snippets/ncp-api-post-dtv.code-snippets"
+        "language": "javascript",
+        "path": "./snippets/ncp-api-post-dtv.code-snippets"
       },
       {
-
-          "language": "javascript",
-          "path": "./snippets/ncp-api-call-dtv.code-snippets"
+        "language": "javascript",
+        "path": "./snippets/ncp-api-call-dtv.code-snippets"
       }
-  ]
+    ]
   },
   "scripts": {
     "vscode:prepublish": "yarn run package",

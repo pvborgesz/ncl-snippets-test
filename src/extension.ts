@@ -70,46 +70,118 @@ function getWebviewContent() {
 		<meta charset="UTF-8">
 		<title>Parser NCL para HTML</title>
 		<style>
-			#mediaContainer, #regionContainer {
-				position: relative;
-				width: 100%;
-				height: 500px;
-				border: 1px solid #ccc;
-			}
-			.media, .region {
-				position: absolute;
-				box-sizing: border-box;
-				border-radius: 10px;
-				display: flex;
-				align-items: center;
-				justify-content: center;
-				text-align: center;
-				overflow: hidden;
-				color: black;
-				font-family: arial;
-				border: 2px solid black;
-				cursor: pointer; /* Estilo do cursor para indicar que o elemento é arrastável */
-			}
+		#fileInput {
+            position: relative;
+            z-index: 10;
+        }
 
-			.region {
-                background-color: rgba(0, 0, 255, 0.2); /* Cor de fundo para regiões */
-            }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #mainRegion {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #regionContainer {
+            position: relative;
+            width: 100%;
+            height: 90%;
+            overflow: auto;
+            background-color: #f0f0f0;
+        }
+
+        .region {
+            position: absolute;
+            border: 2px solid #000;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background-color: rgba(0, 0, 255, 0.2);
+            cursor: pointer;
+        }
+
+        .baseRegion {
+            position: absolute;
+            border: 2px solid #000;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            overflow: hidden;
+            background-color: rgba(0, 0, 255, 0.1);
+        }
+
+        .media {
+            border: 1px solid #444;
+            background-color: #eaeaea;
+            padding: 5px;
+            text-align: center;
+            overflow: hidden;
+            resize: both;
+            z-index: 2;
+        }
+
+        #exportButton, #exportCSSButton {
+            position: relative;
+            z-index: 10;
+            margin-top: 10px;
+            padding: 10px 20px;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        
+        .fileInput-button {
+            position: relative;
+            z-index: 10;
+            margin-top: 10px;
+            padding: 10px 20px;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
 		</style>
 	</head>
 	<body>
 	
-	<input type="file" id="fileInput">
-	<div id="mediaContainer"></div>
-
-
-	<button id="exportButton">Exportar NCL Modificado</button>
-	<button id="exportCSSButton">Exportar CSS</button>
-
+	<input type="file" id="fileInput" style="display: none;" />
+    <button class="fileInput-button" onclick="document.getElementById('fileInput').click();">Selecionar arquivo NCL</button>
+    <div id="mainRegion">
+        <div id="regionContainer"></div>
+    </div>
+    <button id="exportButton">Exportar NCL Modificado</button>
+    <button id="exportCSSButton">Exportar CSS</button>
 	
 	<script>
+		function updateNCLPositions(xmlDoc) {
+			document.querySelectorAll('.region').forEach(element => {
+				const xmlElement = xmlDoc.getElementById(element.id);
+				if (xmlElement) {
+					updateProperty(xmlElement, 'left', element.style.left);
+					updateProperty(xmlElement, 'top', element.style.top);
+				}
+			});
+			return new XMLSerializer().serializeToString(xmlDoc);
+		}
 
-	
-			
 		function updateNCLPositions(xmlDoc) {
 			document.querySelectorAll('.media').forEach(div => {
 				let media = xmlDoc.getElementById(div.id);
@@ -136,214 +208,87 @@ function getWebviewContent() {
 		}
 		
 		let xmlDoc;
-		document.getElementById('fileInput').addEventListener('change', function(event) {
-			let file = event.target.files[0];
-			if (!file) return;
-	
-			let reader = new FileReader();
-			reader.onload = function(e) {
-				let nclString = e.target.result;
-	
-				let parser = new DOMParser();
-				let xmlDoc = parser.parseFromString(nclString, "text/xml");
-	
-				const colors = ['lightblue', 'lightgreen', 'lightcoral', 'lightyellow', 'lightgrey'];
-				let colorIndex = 0;
-	
-				function createRegionElement(region, maxWidth, maxHeight, parentDiv = document.body) {
-					let div = document.createElement('div');
-					let regionId = region.getAttribute('id');
-					div.id = regionId;
-					div.className = 'region';
-					div.textContent = regionId;
-				
-					// Calcular as dimensões relativas ou usar as absolutas
-					let width = parseInt(region.getAttribute('width'), 10);
-					let height = parseInt(region.getAttribute('height'), 10);
-					let actualWidth, actualHeight;
-				
-					// Verifica se as dimensões são percentuais ou absolutas
-					if (isNaN(width) || isNaN(height)) { // Assume que 'width' e 'height' podem ser, por exemplo, '50%'
-						div.style.width = region.getAttribute('width') || '100%';
-						div.style.height = region.getAttribute('height') || '100%';
-						actualWidth = maxWidth * (parseFloat(region.getAttribute('width')) / 100) || maxWidth;
-						actualHeight = maxHeight * (parseFloat(region.getAttribute('height')) / 100) || maxHeight;
-					} else {
-						// Ajusta as dimensões com base nas dimensões máximas ou do parentDiv, se necessário
-						let computedWidth = maxWidth ? (width / maxWidth) * 100 + '%' : width + 'px';
-						let computedHeight = maxHeight ? (height / maxHeight) * 100 + '%' : height + 'px';
-						div.style.width = computedWidth;
-						div.style.height = computedHeight;
-						// Convertendo as dimensões computadas de volta para valores absolutos (em pixels) para uso nas regiões filhas
-						actualWidth = maxWidth ? (width / 100) * maxWidth : width;
-						actualHeight = maxHeight ? (height / 100) * maxHeight : height;
-					}
-				
-					div.style.zIndex = region.getAttribute('zIndex') || '1';
-				
-					div.addEventListener('mousedown', onDragStart);
-				
-					parentDiv.appendChild(div); // Adiciona a região ao elemento pai
-				
-					// Verifica se a região atual possui regiões filhas e as cria recursivamente
-					region.querySelectorAll('region').forEach(childRegion => {
-						// Ajusta maxWidth e maxHeight para serem as dimensões da região pai em pixels
-						createRegionElement(childRegion, actualWidth, actualHeight, div);
-					});
-				
-					return div;
-				}
-				
-				
+		
+		document.getElementById('fileInput').addEventListener('change', function (event) {
+            const file = event.target.files[0];
+            if (!file) {
+                alert("Por favor, selecione um arquivo.");
+                return;
+            }
 
-			function initializeLayout(regionsData) {
-				let maxWidth = window.innerWidth; // ou algum outro valor base
-				let maxHeight = window.innerHeight; // ou algum outro valor base
-			
-				// Verifica se há regiões definidas
-				if (!regionsData || regionsData.length === 0) {
-					let fallbackRegion = document.createElement('div');
-					fallbackRegion.id = 'fallbackRegion';
-					fallbackRegion.className = 'region';
-					fallbackRegion.textContent = 'Fallback Region';
-					fallbackRegion.style.width = '100%';
-					fallbackRegion.style.height = '100%';
-					fallbackRegion.style.zIndex = 0;
-					
-					let regionElement = createRegionElement(fallbackRegion, maxWidth, maxHeight);
-					document.body.appendChild(regionElement); // Ou adicione ao seu container de regiões
-				} else {
-					regionsData.forEach(regionData => {
-						let regionElement = createRegionElement(regionData, maxWidth, maxHeight);
-						document.body.appendChild(regionElement); // Ou adicione ao seu container de regiões
-					});
-				}
-			}
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                try {
+                    const nclString = e.target.result;
+                    const parser = new DOMParser();
+                    xmlDoc = parser.parseFromString(nclString, "application/xml");
 
-				function createMediaElement(media) {
-					let div = document.createElement('div');
-					let mediaId = media.getAttribute('id');
-					div.id = mediaId;
-					div.className = 'media';
-					div.style.borderColor = colors[colorIndex % colors.length];
-					div.style.backgroundColor = colors[(colorIndex + 1) % colors.length];
-					colorIndex++;
-	
-					let textNode = document.createElement('span');
-					textNode.textContent = mediaId;
-					div.appendChild(textNode);
-	
-					media.querySelectorAll('property').forEach(prop => {
-						let name = prop.getAttribute('name');
-						let value = prop.getAttribute('value');
-	
-						if (!isNaN(value) && value !== '' && (name === 'width' || name === 'height' || name === 'left' || name === 'top')) {
-							value += 'px';
-						}
-	
-						div.style[name] = value;
-					});
-	
-					let regionId = media.getAttribute('region');
-    				let regionDiv = document.getElementById(regionId);
-					if (regionDiv) {
-						regionDiv.appendChild(div);
-					} else {
-						document.getElementById('mediaContainer').appendChild(div);
-					}
-					div.addEventListener('mousedown', onDragStart);
-					
-					return div;
-				}
-	
-				function onDragStart(event) {
-					let mediaDiv = event.target.closest('.media');
-					if (!mediaDiv) return;
-	
-					let shiftX = event.clientX - mediaDiv.getBoundingClientRect().left;
-					let shiftY = event.clientY - mediaDiv.getBoundingClientRect().top;
-	
-					mediaDiv.style.position = 'absolute';
-					mediaDiv.style.zIndex = 1000;
-					document.body.append(mediaDiv);
-	
-					moveAt(event.pageX, event.pageY);
-	
-					function moveAt(pageX, pageY) {
-						mediaDiv.style.left = pageX - shiftX + 'px';
-						mediaDiv.style.top = pageY - shiftY + 'px';
-					}
-	
-					function onDrag(event) {
-						moveAt(event.pageX, event.pageY);
-					}
-	
-					function onDragEnd() {
-						document.removeEventListener('mousemove', onDrag);
-						mediaDiv.removeEventListener('mouseup', onDragEnd);
-	
-						// Armazena as novas posições
-						let rect = mediaDiv.getBoundingClientRect();
-						mediaDiv.dataset.finalLeft = rect.left - mediaContainer.getBoundingClientRect().left;
-						mediaDiv.dataset.finalTop = rect.top - mediaContainer.getBoundingClientRect().top;
-					}
-	
-					document.addEventListener('mousemove', onDrag);
-					mediaDiv.addEventListener('mouseup', onDragEnd);
-				}
-				
-				function onDragStartRegion(event) {
-					let regionDiv = event.target.closest('.region');
-					if (!regionDiv) return;
-	
-					let shiftX = event.clientX - regionDiv.getBoundingClientRect().left;
-					let shiftY = event.clientY - regionDiv.getBoundingClientRect().top;
-	
-					regionDiv.style.position = 'absolute';
-					regionDiv.style.zIndex = 1000;
-					document.body.append(regionDiv);
-	
-					moveAt(event.pageX, event.pageY);
-	
-					function moveAt(pageX, pageY) {
-						regionDiv.style.left = pageX - shiftX + 'px';
-						regionDiv.style.top = pageY - shiftY + 'px';
-					}
-	
-					function onDrag(event) {
-						moveAt(event.pageX, event.pageY);
-					}
-	
-					function onDragEnd() {
-						document.removeEventListener('mousemove', onDrag);
-						regionDiv.removeEventListener('mouseup', onDragEnd);
-	
-						// Armazena as novas posições
-						let rect = regionDiv.getBoundingClientRect();
-						regionDiv.dataset.finalLeft = rect.left - mediaContainer.getBoundingClientRect().left;
-						regionDiv.dataset.finalTop = rect.top - mediaContainer.getBoundingClientRect().top;
-					}
-	
-					document.addEventListener('mousemove', onDrag);
-					regionDiv.addEventListener('mouseup', onDragEnd);
-				}
-	
-				xmlDoc.querySelectorAll('media').forEach(media => {
-					let mediaDiv = createMediaElement(media);
-					document.getElementById('mediaContainer').appendChild(mediaDiv);
-				});
+                    if (xmlDoc.getElementsByTagName("parsererror").length) {
+                        throw new Error("Erro de parsing do XML.");
+                    }
 
-				// xmlDoc.querySelectorAll('regionBase > region').forEach(regionCurr => {
-				// 	let regionDiv = createRegionElement(regionCurr);
-				// 	document.getElementById('regionContainer').appendChild(regionDiv);
-				// });
+                    // Inicializar o layout com a base de regiões encontradas
+                    initializeLayout(xmlDoc.querySelector('regionBase'));
+                } catch (error) {
+                    console.error("Erro no parsing do XML: ", error.message);
+                }
+            };
+            reader.readAsText(file);
+        });
+		
+        function addDraggable(element) {
+            element.onmousedown = function (event) {
+                event.preventDefault();
+                var offsetX = event.clientX - element.getBoundingClientRect().left;
+                var offsetY = event.clientY - element.getBoundingClientRect().top;
 
-				initializeLayout(xmlDoc.querySelectorAll('regionBase > region'));
-			};
-	
-			reader.readAsText(file);
-		});
-	
+                function onMouseMove(event) {
+                    element.style.left = (event.clientX - offsetX) + 'px';
+                    element.style.top = (event.clientY - offsetY) + 'px';
+                }
+
+                function onMouseUp() {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                }
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            };
+        }
+		
+
+		function createRegionsDynamically(regionElement, parentDiv) {
+            const regions = regionElement.querySelectorAll('region');
+            regions.forEach(region => {
+                const div = document.createElement('div');
+                div.id = region.getAttribute('id');
+                div.className = 'region';
+                div.style.width = region.getAttribute('width');
+                div.style.height = region.getAttribute('height');
+                div.style.position = 'absolute';
+                div.style.zIndex = region.getAttribute('zIndex') || 1;
+                div.textContent = region.getAttribute('id'); 
+
+                parentDiv.appendChild(div);
+                addDraggable(div); // Adiciona funcionalidade de arrasto
+
+                // Recursivamente criar regiões filhas
+                if (region.children.length > 0) {
+                    createRegionsDynamically(region, div);
+                }
+            });
+        }
+
+		function initializeLayout(regionBase) {
+            const regionContainer = document.getElementById('regionContainer');
+            regionContainer.innerHTML = ''; // Limpar container antes de adicionar novos elementos
+
+            if (!regionBase) return;
+            createRegionsDynamically(regionBase, regionContainer);
+        }
+
+
 		document.getElementById('exportButton').addEventListener('click', () => {
 			xmlDoc = xmlDoc || document.implementation.createDocument(null, 'ncl');
 			let updatedNCL = updateNCLPositions(xmlDoc);
