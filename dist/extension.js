@@ -32,47 +32,58 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.deactivate = exports.activate = void 0;
 const vscode = __importStar(__webpack_require__(1));
 function activate(context) {
-    const editor = vscode.window.activeTextEditor;
-    if (editor) {
-        const document = editor.document;
-        const fileContent = document.getText();
-        const panel = vscode.window.createWebviewPanel('nclSnippetsteste', 'NCL Snippets Teste', vscode.ViewColumn.One, { enableScripts: true });
-        panel.webview.html = getWebviewContent();
-        // update the code based on the file opened in the editor
-        panel.webview.postMessage({ command: 'update', text: fileContent });
-        panel.webview.onDidReceiveMessage(message => {
-            switch (message.command) {
-                case 'alert':
-                    vscode.window.showErrorMessage(message.text);
-                    return;
-            }
-        });
+    // Registro do comando 'Hello World'
+    let disposableHelloWorld = vscode.commands.registerCommand('nclsnippetsteste.helloWorld', () => {
+        vscode.window.showInformationMessage('Hello World from nclSnippetsTeste!');
+    });
+    // Registro do comando para iniciar a tela NCL
+    let nclScreen = vscode.commands.registerCommand('nclScreen.start', () => {
+        createNCLScreenWebview(context);
+    });
+    // Registro do comando para gerar a região
+    let generateRegion = vscode.commands.registerCommand('nclScreen.generateRegion', () => {
+        createRegionGeneratorWebview(context);
+    });
+    // Adicionando todos os comandos registrados ao context.subscriptions para gerenciamento adequado do ciclo de vida
+    context.subscriptions.push(disposableHelloWorld, nclScreen, generateRegion);
+    // Verifica se há um editor de texto ativo ao ativar a extensão
+    if (vscode.window.activeTextEditor) {
+        createInitialWebview(context);
     }
     else {
         vscode.window.showInformationMessage('Nenhum arquivo aberto.');
     }
-    let disposable = vscode.commands.registerCommand('nclsnippetsteste.helloWorld', () => {
-        vscode.window.showInformationMessage('Hello World from nclSnippetsTeste!');
-    });
-    let nclScreen = vscode.commands.registerCommand('nclScreen.start', () => {
-        vscode.window.showInformationMessage('Hello World from nclScreen.start!');
-    });
-    const panel = vscode.window.createWebviewPanel('nclScreen', 'NCL Screen', vscode.ViewColumn.One, {
+}
+exports.activate = activate;
+function createInitialWebview(context) {
+    const editor = vscode.window.activeTextEditor;
+    const document = editor?.document;
+    const fileContent = document?.getText();
+    const panel = vscode.window.createWebviewPanel('nclSnippetsteste', 'NCL Snippets Teste', vscode.ViewColumn.One, { enableScripts: true });
+    panel.webview.html = getWebviewContent(); // Your function that returns HTML content
+    panel.webview.postMessage({ command: 'update', text: fileContent });
+    panel.webview.onDidReceiveMessage(message => {
+        if (message.command === 'alert') {
+            vscode.window.showErrorMessage(message.text);
+        }
+    }, undefined, context.subscriptions);
+}
+function createNCLScreenWebview(context) {
+    const panel = vscode.window.createWebviewPanel('nclScreen', 'NCL Screen', vscode.ViewColumn.Two, {
         enableScripts: true,
         retainContextWhenHidden: true
     });
-    panel.webview.html = getWebviewContent();
+    panel.webview.html = getWebviewContent(); // Adjust if you have another HTML content generator for this
     panel.webview.onDidReceiveMessage(message => {
-        switch (message.command) {
-            case 'alert':
-                vscode.window.showErrorMessage(message.text);
-                return;
+        if (message.command === 'alert') {
+            vscode.window.showErrorMessage(message.text);
         }
     }, undefined, context.subscriptions);
-    context.subscriptions.push(disposable);
-    context.subscriptions.push(nclScreen);
 }
-exports.activate = activate;
+function createRegionGeneratorWebview(context) {
+    const panel = vscode.window.createWebviewPanel('regionGenerator', 'Region Generator', vscode.ViewColumn.Three, { enableScripts: true });
+    panel.webview.html = getContentGenerateRegion(); // Your function that returns HTML for the region generator
+}
 function getWebviewContent() {
     return `
 	<!DOCTYPE html>
@@ -322,6 +333,152 @@ function getWebviewContent() {
 	</body>
 	</html>
 	`;
+}
+function getContentGenerateRegion() {
+    return `<!DOCTYPE html>
+    <html lang="pt-br">
+    
+    <head>
+        <meta charset="UTF-8">
+        <title>Region Generator</title>
+        <style>
+            #container {
+                width: 100%;
+                height: 100vh;
+                border: 2px dashed #ccc;
+                position: relative;
+            }
+    
+            .div-criada {
+                position: absolute;
+                border-radius: 8px;
+                border: 1px solid #000;
+                cursor: move;
+                /* Cursor em forma de movimento para indicar que pode ser arrastada */
+                color: white;
+                /* Cor do texto */
+                display: flex;
+                /* Flexbox para alinhar o texto no centro */
+                align-items: center;
+                /* Alinha verticalmente no centro */
+                justify-content: center;
+                /* Alinha horizontalmente no centro */
+                font-size: 16px;
+                /* Tamanho do texto */
+                text-shadow: 1px 1px 2px black;
+                /* Sombra no texto para melhor visibilidade */
+            }
+    
+            #legend {
+                position: fixed;
+                bottom: 10px;
+                right: 10px;
+                padding: 10px;
+                background-color: #f8f8f8;
+                border: 1px solid #ccc;
+                border-radius: 5px;
+                box-shadow: 1px 1px 5px #ccc;
+            }
+        </style>
+    </head>
+    
+    <body>
+        <div id="legend">
+            <strong>Legenda:</strong> 
+            CTRL + Click para criar uma região, ALT + Click para deletar uma região, Click e arraste para mover uma região.
+        </div>
+        <div id="container"></div>
+        <script>
+            const container = document.getElementById("container");
+            let isDragging = false;
+            let novaDiv;
+            let startX, startY;
+            let count = 0;
+            let ctrlPressed = false;
+    
+            function randomColor() {
+                const r = Math.floor(Math.random() * 256);
+                const g = Math.floor(Math.random() * 256);
+                const b = Math.floor(Math.random() * 256);
+                return "rgba(" + r + ", " + g + ", " + b + ", 0.7)";
+            }
+    
+            document.addEventListener("keydown", function(e) {
+                if (e.ctrlKey) {
+                    ctrlPressed = true;
+                }
+                if (e.altKey) {
+                    altPressed = true;
+                }
+            });
+    
+            document.addEventListener("keyup", function(e) {
+                if (e.key === "Control") {
+                    ctrlPressed = false;
+                }
+                if (e.key === "Alt") {
+                    altPressed = false;
+                }
+            });
+    
+            container.addEventListener("mousedown", function (e) {
+                if (altPressed && e.target.classList.contains("div-criada")) {
+                    container.removeChild(e.target);
+                    return;
+                }
+                if (ctrlPressed) {
+                    isDragging = true;
+                    startX = e.pageX;
+                    startY = e.pageY;
+                    count++;
+    
+                    novaDiv = document.createElement("div");
+                    novaDiv.className = "div-criada";
+                    novaDiv.style.left = startX + "px";
+                    novaDiv.style.top = startY + "px";
+                    novaDiv.style.backgroundColor = randomColor();
+                    novaDiv.id = "region_" + count;
+                    novaDiv.textContent = "Region " + count; // Adiciona texto ao elemento
+    
+                    container.appendChild(novaDiv);
+                } else {
+                    // Permite mover as regiões existentes
+                    if (e.target.classList.contains("div-criada")) {
+                        novaDiv = e.target;
+                        startX = e.pageX - novaDiv.offsetLeft;
+                        startY = e.pageY - novaDiv.offsetTop;
+                        isDragging = true;
+                    }
+                }
+            });
+    
+            container.addEventListener("mousemove", function (e) {
+                if (isDragging) {
+                    if (ctrlPressed) {
+                        const currentX = e.pageX;
+                        const currentY = e.pageY;
+                        const width = Math.abs(currentX - startX);
+                        const height = Math.abs(currentY - startY);
+                        novaDiv.style.width = width + "px";
+                        novaDiv.style.height = height + "px";
+    
+                        novaDiv.style.left = Math.min(startX
+                            , currentX) + "px";
+                        novaDiv.style.top = Math.min(startY, currentY) + "px";
+                    } else {
+                        // Atualiza a posição da região sendo movida
+                        novaDiv.style.left = (e.pageX - startX) + "px";
+                        novaDiv.style.top = (e.pageY - startY) + "px";
+                    }
+                }
+            });
+            container.addEventListener("mouseup", function () {
+                isDragging = false;
+            });
+        </script>
+    </body>
+    
+    </html>`;
 }
 // This method is called when your extension is deactivated
 function deactivate() { }

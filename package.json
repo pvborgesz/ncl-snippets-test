@@ -11,7 +11,8 @@
   ],
   "activationEvents": [
     "onCommand:nclsnippetsteste.helloWorld",
-    "onCommand:nclScreen.start"
+    "onCommand:nclScreen.start",
+    "onCommand:nclScreen.generateRegion"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -20,7 +21,13 @@
               "command": "nclScreen.start",
               "title": "Start new ncl screen",
               "category": "Ncl"
-          }
+          },
+          {
+            "command": "nclScreen.generateRegion",
+            "title": "Generate Region",
+            "category": "Ncl"
+
+        }
       ],
     "snippets": [
       {
