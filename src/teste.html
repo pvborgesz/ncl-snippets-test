@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parser NCL para HTML</title>
+    <style>
+        #fileInput {
+            position: relative;
+            z-index: 10;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #mainRegion {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #regionContainer {
+            position: relative;
+            width: 100%;
+            height: 100%;  /* Changed from 90% to 100% to use the full area */
+            overflow: auto;
+            background-color: #f0f0f0;
+        }
+
+        .created-div {
+            position: absolute;
+            border-radius: 8px;
+            border: 1px solid #000;
+            cursor: move;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            text-shadow: 1px 1px 2px black;
+            background-color: rgba(0, 0, 255, 0.2);
+        }
+
+        #legend {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            padding: 10px;
+            background-color: #494d54; 
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 1px 1px 5px #ccc;
+        }
+    </style>
+</head>
+<body>
+    <video id="videoElement" playsinline autoplay style="display:none;"></video>
+    <div id="mainRegion">
+        <div id="regionContainer"></div>
+    </div>
+    <div id="legend">
+        <strong>Legend:</strong>
+        CTRL + Click to create a region, ALT + Click to delete a region, Click and drag to move a region.
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.min.js"></script>
+    <script>
+        const videoElement = document.getElementById('videoElement');
+        const container = document.getElementById("regionContainer");
+        let isDragging = false;
+        let newDiv;
+        let initialDistance = null;
+        let initialWidth, initialHeight;
+        let startX, startY;
+        let ctrlPressed = false;
+        let altPressed = false;
+
+        const hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+        });
+
+        hands.setOptions({
+            maxNumHands: 1,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5
+        });
+
+        hands.onResults(results => {
+            if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+                const landmarks = results.multiHandLandmarks[0];
+                const thumbTip = landmarks[4]; // Ponta do polegar
+                const indexTip = landmarks[8]; // Ponta do indicador
+
+                const videoWidth = videoElement.videoWidth;
+                const videoHeight = videoElement.videoHeight;
+                const thumbPosX = thumbTip.x * videoWidth;
+                const thumbPosY = thumbTip.y * videoHeight;
+                const indexPosX = indexTip.x * videoWidth;
+                const indexPosY = indexTip.y * videoHeight;
+
+                const currentDistance = Math.sqrt(Math.pow(thumbPosX - indexPosX, 2) + Math.pow(thumbPosY - indexPosY, 2));
+
+                if (!initialDistance) {
+                    initialDistance = currentDistance;
+                    initialWidth = newDiv ? parseInt(newDiv.style.width, 10) : 0;
+                    initialHeight = newDiv ? parseInt(newDiv.style.height, 10) : 0;
+                } else if (isDragging && ctrlPressed) {
+                    const scale = currentDistance / initialDistance;
+                    newDiv.style.width = `${initialWidth * scale}px`;
+                    newDiv.style.height = `${initialHeight * scale}px`;
+                }
+            } else {
+                isDragging = false;
+                initialDistance = null;
+            }
+        });
+
+        function onFrameUpdate() {
+            hands.send({image: videoElement});
+        }
+
+        navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+            videoElement.srcObject = stream;
+            videoElement.onloadedmetadata = () => {
+                videoElement.play();
+                setInterval(onFrameUpdate, 100);
+            };
+        });
+
+        document.addEventListener("keydown", function(e) {
+            if (e.key === "Control") {
+                ctrlPressed = true;
+            }
+            if (e.key === "Alt") {
+                altPressed = true;
+            }
+        });
+
+        document.addEventListener("keyup", function(e) {
+            if (e.key === "Control") {
+                ctrlPressed = false;
+            }
+            if (e.key === "Alt") {
+                altPressed = false;
+            }
+        });
+
+        container.addEventListener("mousedown", function(e) {
+            if (altPressed && e.target.classList.contains("created-div")) {
+                container.removeChild(e.target);
+                return;
+            }
+            if (ctrlPressed && !isDragging) {
+                startX = e.pageX - container.offsetLeft;
+                startY = e.pageY - container.offsetTop;
+                isDragging = true;
+                newDiv = document.createElement("div");
+                newDiv.className = "created-div";
+                newDiv.style.left = startX + "px";
+                newDiv.style.top = startY + "px";
+                newDiv.style.width = "100px";
+                newDiv.style.height = "100px";
+                container.appendChild(newDiv);
+            } else if (!ctrlPressed && e.target.classList.contains("created-div")) {
+                isDragging = true;
+                newDiv = e.target;
+                startX = e.pageX - newDiv.offsetLeft;
+                startY = e.pageY - newDiv.offsetTop;
+            }
+        });
+
+        container.addEventListener("mousemove", function(e) {
+            if (isDragging && !ctrlPressed) {
+                const mouseX = e.pageX - container.offsetLeft;
+                const mouseY = e.pageY - container.offsetTop;
+                newDiv.style.left = (mouseX - startX) + "px";
+                newDiv.style.top = (mouseY - startY) + "px";
+            }
+        });
+
+        container.addEventListener("mouseup", function() {
+            isDragging = false;
+            initialDistance = null;
+        });
+    </script>
+</body>
+</html>

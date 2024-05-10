@@ -1,0 +1,356 @@
+
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parser NCL para HTML</title>
+    <style>
+        #fileInput {
+            position: relative;
+            z-index: 10;
+        }
+
+        body,
+        html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        #mainRegion {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #regionContainer {
+            position: relative;
+            width: 100%;
+            height: 90%;
+            overflow: auto;
+            background-color: #f0f0f0;
+        }
+
+        .region {
+            position: absolute;
+            overflow: hidden;
+            background-color: rgba(0, 0, 255, 0.2);
+            border-radius: 8px;
+            border: 1px solid #000;
+            cursor: move;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        .baseRegion {
+            position: absolute;
+            border: 2px solid #000;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            overflow: hidden;
+            background-color: rgba(0, 0, 255, 0.1);
+        }
+
+        .media {
+            border: 1px solid #444;
+            background-color: #eaeaea;
+            padding: 5px;
+            text-align: center;
+            overflow: hidden;
+            resize: both;
+            z-index: 2;
+        }
+
+        #exportButton,
+        #exportCSSButton {
+            position: relative;
+            z-index: 10;
+            margin-top: 10px;
+            padding: 10px 20px;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        .fileInput-button {
+            position: relative;
+            z-index: 10;
+            margin-top: 10px;
+            padding: 10px 20px;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        #container {
+            width: 100%;
+            height: 100vh;
+            border: 2px dashed #ccc;
+            position: relative;
+        }
+
+        .div-criada {
+            position: absolute;
+            border-radius: 8px;
+            border: 1px solid #000;
+            cursor: move;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            text-shadow: 1px 1px 2px black;
+        }
+
+        #legend {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            padding: 10px;
+            background-color: #494d54; 
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 1px 1px 5px #ccc;
+        }
+        
+    </style>
+</head>
+
+<body>
+    
+    <div id="mainRegion">
+        <div id="regionContainer"></div>
+    </div>
+    <div id="legend">
+        <strong>Legend:</strong>
+        CTRL + Click to create a region, ALT + Click to delete a region, Click and drag to move a region.
+    </div>
+
+    // <div id="container"></div>
+    <script>
+
+
+    const container = document.getElementById("container");
+    let isDragging = false;
+    let novaDiv;
+    let startX, startY;
+    let count = 0;
+    let ctrlPressed = false;
+
+    function randomColor() {
+        const r = Math.floor(Math.random() * 256);
+        const g = Math.floor(Math.random() * 256);
+        const b = Math.floor(Math.random() * 256);
+        return "rgba(" + r + ", " + g + ", " + b + ", 0.7)";
+    }
+
+    document.addEventListener("keydown", function(e) {
+        if (e.ctrlKey) {
+            ctrlPressed = true;
+        }
+        if (e.altKey) {
+            altPressed = true;
+        }
+    });
+
+    document.addEventListener("keyup", function(e) {
+        if (e.key === "Control") {
+            ctrlPressed = false;
+        }
+        if (e.key === "Alt") {
+            altPressed = false;
+        }
+    });
+
+    container.addEventListener("mousedown", function (e) {
+        if (altPressed && e.target.classList.contains("div-criada")) {
+            container.removeChild(e.target);
+            return;
+        } else
+        if (ctrlPressed) {
+            isDragging = true;
+            startX = e.pageX;
+            startY = e.pageY;
+            count++;
+
+            novaDiv = document.createElement("div");
+            novaDiv.className = "div-criada";
+            novaDiv.style.left = startX + "px";
+            novaDiv.style.top = startY + "px";
+            novaDiv.style.backgroundColor = randomColor();
+            novaDiv.id = "region_" + count;
+            novaDiv.textContent = "Region " + count; 
+
+            container.appendChild(novaDiv);
+        } else {
+            // Permite mover as regiões existentes
+            if (e.target.classList.contains("div-criada")) {
+                novaDiv = e.target;
+                startX = e.pageX - novaDiv.offsetLeft;
+                startY = e.pageY - novaDiv.offsetTop;
+                isDragging = true;
+            }
+        }
+    });
+
+    container.addEventListener("mousemove", function (e) {
+        if (isDragging) {
+            if (ctrlPressed) {
+                const currentX = e.pageX;
+                const currentY = e.pageY;
+                const width = Math.abs(currentX - startX);
+                const height = Math.abs(currentY - startY);
+                novaDiv.style.width = width + "px";
+                novaDiv.style.height = height + "px";
+
+                novaDiv.style.left = Math.min(startX
+                    , currentX) + "px";
+                novaDiv.style.top = Math.min(startY, currentY) + "px";
+            } else {
+                // Atualiza a posição da região sendo movida
+                novaDiv.style.left = (e.pageX - startX) + "px";
+                novaDiv.style.top = (e.pageY - startY) + "px";
+            }
+        }
+    });
+    container.addEventListener("mouseup", function () {
+        isDragging = false;
+    });
+
+
+
+        let xmlDoc; // Variável global para armazenar o documento XML
+
+        try {
+            const nclString = `${fileContent}`; // Usando template literals para inserir o conteúdo
+            const parser = new DOMParser();
+            xmlDoc = parser.parseFromString(nclString, "application/xml");
+            
+            if (xmlDoc.getElementsByTagName("parsererror").length) {
+                throw new Error("Erro de parsing do XML.");
+            }
+
+            // Inicializar o layout com a base de regiões encontradas
+            initializeLayout(xmlDoc.querySelector('regionBase'));
+        } catch (error) {
+            console.error("Erro no parsing do XML: ", error.message);
+        }
+        function calculatePercentage(percent, total) {
+            return parseFloat(percent) / 100 * total;
+        }
+
+
+        function initializeLayout(regionBase) {
+            const regionContainer = document.getElementById('regionContainer');
+            regionContainer.innerHTML = ''; // Limpar container antes de adicionar novos elementos
+
+            if (!regionBase) return;
+            createRegionsDynamically(regionBase, regionContainer);
+        }
+
+        function addDraggable(element) {
+            element.onmousedown = function (event) {
+                event.preventDefault();
+                var offsetX = event.clientX - element.getBoundingClientRect().left;
+                var offsetY = event.clientY - element.getBoundingClientRect().top;
+
+                function onMouseMove(event) {
+                    element.style.left = (event.clientX - offsetX) + 'px';
+                    element.style.top = (event.clientY - offsetY) + 'px';
+                }
+
+                function onMouseUp() {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                }
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            };
+        }
+
+        
+        function createRegionsDynamically(regionElement, parentDiv) {
+            const regions = regionElement.querySelectorAll('region');
+            regions.forEach(region => {
+                if (!document.getElementById(region.getAttribute('id'))) {  
+                    const div = document.createElement('div');
+                    div.id = region.getAttribute('id');
+                    div.className = 'region';
+                    
+                    div.style.width = calculatePercentage(region.getAttribute('width'), parentDiv.offsetWidth) + 'px';
+                    div.style.height = calculatePercentage(region.getAttribute('height'), parentDiv.offsetHeight) + 'px';
+                    div.style.position = 'absolute';
+                    div.style.zIndex = region.getAttribute('zIndex') || 1;
+                    div.textContent = region.getAttribute('id');
+                   
+                    div.style.left = calculatePercentage(region.getAttribute('left') || '0%', parentDiv.offsetWidth) + 'px';
+                    div.style.top = calculatePercentage(region.getAttribute('top') || '0%', parentDiv.offsetHeight) + 'px';
+
+                    div.style.border = '1px solid black';
+                    div.style.backgroundColor = 'rgba(100, 100, 250, 0.5)';
+
+                    parentDiv.appendChild(div);
+                    addDraggable(div); // Adiciona funcionalidade de arrasto
+
+                    // Recursivamente criar regiões filhas
+                    if (region.children.length > 0) {
+                        createRegionsDynamically(region, div);
+                    }
+                }
+            });
+        }
+
+        document.getElementById('exportButton').addEventListener('click', () => {
+            if (!xmlDoc) {
+                console.error('Nenhum documento XML carregado.');
+                return;
+            }
+            const updatedNCL = updateNCLPositions(xmlDoc);
+            download('modified.ncl', updatedNCL);
+        });
+
+
+
+        function updateProperty(element, propName, value) {
+            let prop = element.querySelector('property[name="' + propName + '"]');
+            if (!prop) {
+                prop = xmlDoc.createElement('property');
+                prop.setAttribute('name', propName);
+                element.appendChild(prop);
+            }
+            prop.setAttribute('value', value);
+        }
+
+        function download(filename, text) {
+            let element = document.createElement('a');
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+            element.setAttribute('download', filename);
+            element.style.display = 'none';
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
+    </script>
+</body>
+
+</html>

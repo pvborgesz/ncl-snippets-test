@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,7 +11,8 @@
             z-index: 10;
         }
 
-        body, html {
+        body,
+        html {
             margin: 0;
             padding: 0;
             width: 100%;
@@ -68,7 +70,8 @@
             z-index: 2;
         }
 
-        #exportButton, #exportCSSButton {
+        #exportButton,
+        #exportCSSButton {
             position: relative;
             z-index: 10;
             margin-top: 10px;
@@ -80,7 +83,7 @@
             cursor: pointer;
             border-radius: 5px;
         }
-        
+
         .fileInput-button {
             position: relative;
             z-index: 10;
@@ -95,9 +98,11 @@
         }
     </style>
 </head>
+
 <body>
     <input type="file" id="fileInput" style="display: none;" />
-    <button class="fileInput-button" onclick="document.getElementById('fileInput').click();">Selecionar arquivo NCL</button>
+    <button class="fileInput-button" onclick="document.getElementById('fileInput').click();">Selecionar arquivo
+        NCL</button>
     <div id="mainRegion">
         <div id="regionContainer"></div>
     </div>
@@ -144,50 +149,79 @@
         function createRegionsDynamically(regionElement, parentDiv) {
             const regions = regionElement.querySelectorAll('region');
             regions.forEach(region => {
-                const div = document.createElement('div');
-                div.id = region.getAttribute('id');
-                div.className = 'region';
-                div.style.width = region.getAttribute('width');
-                div.style.height = region.getAttribute('height');
-                div.style.position = 'absolute';
-                div.style.zIndex = region.getAttribute('zIndex') || 1;
-                div.textContent = region.getAttribute('id'); 
+                if (!document.getElementById(region.getAttribute('id'))) {  // Verificar se o elemento já existe
+                    const div = document.createElement('div');
+                    div.id = region.getAttribute('id');
+                    div.className = 'region';
+                    // Converter porcentagens para valores absolutos baseados nas dimensões do elemento pai
+                    div.style.width = calculatePercentage(region.getAttribute('width'), parentDiv.offsetWidth) + 'px';
+                    div.style.height = calculatePercentage(region.getAttribute('height'), parentDiv.offsetHeight) + 'px';
+                    div.style.position = 'absolute';
+                    div.style.zIndex = region.getAttribute('zIndex') || 1;
+                    div.textContent = region.getAttribute('id');
 
-                parentDiv.appendChild(div);
-                addDraggable(div); // Adiciona funcionalidade de arrasto
+                    // Posicionar inicialmente
+                    div.style.left = calculatePercentage(region.getAttribute('left') || '0%', parentDiv.offsetWidth) + 'px';
+                    div.style.top = calculatePercentage(region.getAttribute('top') || '0%', parentDiv.offsetHeight) + 'px';
 
-                // Recursivamente criar regiões filhas
-                if (region.children.length > 0) {
-                    createRegionsDynamically(region, div);
+                    // Adicionando borda e uma cor de fundo leve para visibilidade
+                    div.style.border = '1px solid black';
+                    div.style.backgroundColor = 'rgba(100, 100, 250, 0.5)';
+
+                    parentDiv.appendChild(div);
+                    addDraggable(div); // Adiciona funcionalidade de arrasto
+
+                    // Recursivamente criar regiões filhas
+                    if (region.children.length > 0) {
+                        createRegionsDynamically(region, div);
+                    }
                 }
             });
+        }
+
+
+        function calculatePercentage(percent, total) {
+            return parseFloat(percent) / 100 * total;
         }
 
         function addDraggable(element) {
             element.onmousedown = function (event) {
                 event.preventDefault();
-                var offsetX = event.clientX - element.getBoundingClientRect().left;
-                var offsetY = event.clientY - element.getBoundingClientRect().top;
+                event.stopPropagation(); // Isso impede que o evento continue a propagar para elementos pais
+
+                // Coordenadas iniciais do cursor e do elemento
+                var startX = event.clientX;
+                var startY = event.clientY;
+                var startLeft = parseInt(element.style.left, 10) || 0;
+                var startTop = parseInt(element.style.top, 10) || 0;
 
                 function onMouseMove(event) {
-                    element.style.left = (event.clientX - offsetX) + 'px';
-                    element.style.top = (event.clientY - offsetY) + 'px';
+                    // Calcular novas posições
+                    var newLeft = startLeft + event.clientX - startX;
+                    var newTop = startTop + event.clientY - startY;
+
+                    // Atualizar a posição do elemento
+                    element.style.left = newLeft + 'px';
+                    element.style.top = newTop + 'px';
                 }
 
                 function onMouseUp() {
+                    // Remover os event listeners quando o mouse é solto
                     document.removeEventListener('mousemove', onMouseMove);
                     document.removeEventListener('mouseup', onMouseUp);
                 }
 
+                // Adicionar event listeners para movimento do mouse e soltar o mouse
                 document.addEventListener('mousemove', onMouseMove);
                 document.addEventListener('mouseup', onMouseUp);
             };
         }
 
-        document.getElementById('exportCSSButton').addEventListener('click', function() {
+
+        document.getElementById('exportCSSButton').addEventListener('click', function () {
             console.log('Iniciando exportação de CSS...');
             let cssString = "";
-            document.querySelectorAll('.region').forEach(function(element) {
+            document.querySelectorAll('.region').forEach(function (element) {
                 cssString += "#" + element.id + " { width: " + element.style.width + "; height: " + element.style.height + "; position: " + element.style.position + "; z-index: " + element.style.zIndex + "; left: " + element.style.left + "; top: " + element.style.top + "; }\n";
             });
 
@@ -211,7 +245,7 @@
             download('modified.ncl', updatedNCL);
         });
 
-        
+
 
         function updateProperty(element, propName, value) {
             let prop = element.querySelector('property[name="' + propName + '"]');
@@ -234,4 +268,5 @@
         }
     </script>
 </body>
+
 </html>
