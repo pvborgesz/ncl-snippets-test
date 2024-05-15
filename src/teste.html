@@ -75,10 +75,10 @@
         const videoElement = document.getElementById('videoElement');
         const container = document.getElementById("regionContainer");
         let isDragging = false;
-        let newDiv;
+        let newDiv = null;
         let initialDistance = null;
-        let initialWidth, initialHeight;
-        let startX, startY;
+        let initialWidth = 0, initialHeight = 0;
+        let startX = 0, startY = 0;
         let ctrlPressed = false;
         let altPressed = false;
 
@@ -112,7 +112,7 @@
                     initialDistance = currentDistance;
                     initialWidth = newDiv ? parseInt(newDiv.style.width, 10) : 0;
                     initialHeight = newDiv ? parseInt(newDiv.style.height, 10) : 0;
-                } else if (isDragging && ctrlPressed) {
+                } else if (isDragging && ctrlPressed && newDiv) {
                     const scale = currentDistance / initialDistance;
                     newDiv.style.width = `${initialWidth * scale}px`;
                     newDiv.style.height = `${initialHeight * scale}px`;
@@ -178,7 +178,7 @@
         });
 
         container.addEventListener("mousemove", function(e) {
-            if (isDragging && !ctrlPressed) {
+            if (isDragging && !ctrlPressed && newDiv) {
                 const mouseX = e.pageX - container.offsetLeft;
                 const mouseY = e.pageY - container.offsetTop;
                 newDiv.style.left = (mouseX - startX) + "px";
