@@ -138,7 +138,6 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
               height: 100%;
               overflow: hidden;
               user-select: none;
-              overflow: hidden;
           }
   
           #mainRegion {
@@ -168,6 +167,7 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
               background-color: rgba(0, 0, 255, 0.2);
               border-radius: 8px;
               color: white;
+              text-align: center;
               display: flex;
               align-items: center;
               justify-content: center;
@@ -290,16 +290,16 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
       </head>
       <body>
           <div id="mainRegion">
-              <div id="regionContainer"></div>
-          </div>
-          <div id="legend">
-              <strong>Legend:</strong>
-              CTRL + Click to create a region, ALT + Click to delete a region, Click and drag to move a region.
-              Scroll to change the z-index.
-          </div>
           <select id="parentRegionSelect">
               <option value="">None (Top Level)</option>
           </select>
+              <div id="regionContainer"></div>
+              <div id="legend">
+                  <strong>Legend:</strong>
+                  CTRL + Click to create a region, ALT + Click to delete a region, Click and drag to move a region.
+                  Scroll to change the z-index.
+              </div>
+          </div>
           <div id="container"></div> 
   
           <div id="zIndexMonitor">Current z-index: 1</div>
@@ -328,6 +328,12 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
               document.addEventListener("keydown", function(e) {
                   if (e.ctrlKey) {
                       ctrlPressed = true;
+
+                        document.querySelectorAll('.region').forEach(region => {
+                            region.classList.remove('active');
+                            region.classList.add('non-active');
+                        });
+                        
                   }
                   if (e.altKey) {
                       altPressed = true;
@@ -345,28 +351,23 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
                   updateCursorStyles();
               });
               
-              container.addEventListener("mousedown", function (e) {
-                  if (altPressed && (e.target.classList.contains("region") || e.target.classList.contains("div-criada"))) {
-                      e.target.remove();
-                      updateParentRegionSelect();
-                      return;
-                  } else if (e.target.classList.contains("region") || e.target.classList.contains("div-criada")) {
-                      isDragging = true;
-                      draggedDiv = e.target;
-                      const rect = draggedDiv.getBoundingClientRect();
-                      startX = e.clientX - rect.left;
-                      startY = e.clientY - rect.top;
-                  } else if (ctrlPressed) { 
+              document.addEventListener("mousedown", function (e) {
+                if (altPressed && (e.target.classList.contains("region") || e.target.classList.contains("div-criada"))) {
+                    e.target.remove();
+                    updateParentRegionSelect();
+                    console.log('Region deleted:', e.target.id);
+                    return;
+                } else if (ctrlPressed) {
                     const countAllDivs = document.querySelectorAll('.region').length + 1;
                     isDragging = true;
-                  
+            
                     const parentDivId = parentRegionSelect.value || 'parentRegion'; // Default to 'parentRegion' if no selection
                     const target = document.getElementById(parentDivId) || regionContainer; // Fallback to regionContainer
                     const parentRect = target.getBoundingClientRect();
                     startX = e.clientX - parentRect.left;
                     startY = e.clientY - parentRect.top;
                     count++;
-                  
+                    console.log('Creating new region:', countAllDivs);
                     novaDiv = document.createElement("div");
                     novaDiv.className = "region active";
                     novaDiv.style.left = startX + "px";
@@ -375,32 +376,46 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
                     novaDiv.style.zIndex = currentZIndex;
                     novaDiv.id = "region_" + countAllDivs;
                     novaDiv.textContent = "Region " + countAllDivs;
-                  
-                    target.appendChild(novaDiv); 
+            
+                    target.appendChild(novaDiv);
                     addDraggable(novaDiv);
                     addResizable(novaDiv);
-                  
-                    // Initial dimensions for the new region (you can customize these)
-                    const initialWidthPercentage = 5; // Start with 5% width
-                    const initialHeightPercentage = 5; // Start with 5% height
-                  
-                    const left = (startX / parentRect.width * 100).toFixed(2) + '%';
-                    const top = (startY / parentRect.height * 100).toFixed(2) + '%';
-                    const width = initialWidthPercentage + '%'; 
-                    const height = initialHeightPercentage + '%'; 
-                    
-                    novaDiv.style.width = width; 
-                    novaDiv.style.height = height; 
-                    novaDiv.style.left = left; 
-                    novaDiv.style.top = top;
-                  
-                    // Ensure immediate visibility
-                    novaDiv.style.display = 'block';
-                    novaDiv.style.visibility = 'visible';
-                  
-                    addRegionToXML(novaDiv.id, left, top, width, height, currentZIndex, parentDivId);
-                  }
-              });
+            
+                    function onMouseMove(e) {
+                        const currentX = e.clientX - parentRect.left;
+                        const currentY = e.clientY - parentRect.top;
+                        const width = Math.abs(currentX - startX);
+                        const height = Math.abs(currentY - startY);
+                        novaDiv.style.width = width + "px";
+                        novaDiv.style.height = height + "px";
+                        novaDiv.style.left = Math.min(startX, currentX) + "px";
+                        novaDiv.style.top = Math.min(startY, currentY) + "px";
+                    }
+            
+                    function onMouseUp() {
+                        document.removeEventListener("mousemove", onMouseMove);
+                        document.removeEventListener("mouseup", onMouseUp);
+                        sendUpdatedPositions();
+            
+                        const left = (parseInt(novaDiv.style.left) / parentRect.width * 100).toFixed(2) + '%';
+                        const top = (parseInt(novaDiv.style.top) / parentRect.height * 100).toFixed(2) + '%';
+                        const width = (parseInt(novaDiv.style.width) / parentRect.width * 100).toFixed(2) + '%';
+                        const height = (parseInt(novaDiv.style.height) / parentRect.height * 100).toFixed(2) + '%';
+            
+                        addRegionToXML(novaDiv.id, left, top, width, height, currentZIndex, parentDivId);
+                    }
+            
+                    document.addEventListener("mousemove", onMouseMove);
+                    document.addEventListener("mouseup", onMouseUp);
+                } else if (e.target.classList.contains("region") || e.target.classList.contains("div-criada")) {
+                    isDragging = true;
+                    draggedDiv = e.target;
+                    const rect = draggedDiv.getBoundingClientRect();
+                    startX = e.clientX - rect.left;
+                    startY = e.clientY - rect.top;
+                    console.log('Dragging region:', draggedDiv.id);
+                } 
+            });
   
               parentRegionSelect.addEventListener('change', function () {
                   const selectedId = parentRegionSelect.value;
@@ -445,6 +460,8 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
                       }
                   }
               });
+
+            
   
               container.addEventListener("mouseup", function () {
                   isDragging = false;
@@ -479,62 +496,61 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
               }
   
               function addDraggable(element) {
-                  let offsetX, offsetY;
-                  let initialLeft, initialTop, initialWidth, initialHeight;
-              
-                  element.onmousedown = function (event) {
-                      if (parseInt(element.style.zIndex, 10) !== currentZIndex || ctrlPressed) return;
-              
-                      event.preventDefault();
-                      event.stopPropagation();
-              
-                      offsetX = event.clientX - element.getBoundingClientRect().left;
-                      offsetY = event.clientY - element.getBoundingClientRect().top;
-              
-                      initialLeft = element.style.left;
-                      initialTop = element.style.top;
-                      initialWidth = element.style.width;
-                      initialHeight = element.style.height;
-              
-                      function onMouseMove(event) {
-                          let newLeft = event.clientX - offsetX;
-                          let newTop = event.clientY - offsetY;
-              
-                          // Ensure the element stays within the container bounds
-                          const parent = element.parentElement;
-                          const parentRect = parent.getBoundingClientRect();
-                          const elementRect = element.getBoundingClientRect();
-              
-                          if (newLeft < 0) {
-                              newLeft = 0;
-                          } else if (newLeft + elementRect.width > parentRect.width) {
-                              newLeft = parentRect.width - elementRect.width;
-                          }
-              
-                          if (newTop < 0) {
-                              newTop = 0;
-                          } else if (newTop + elementRect.height > parentRect.height) {
-                              newTop = parentRect.height - elementRect.height;
-                          }
-              
-                          element.style.left = newLeft + 'px';
-                          element.style.top = newTop + 'px';
-                      }
-              
-                      function onMouseUp() {
-                          document.removeEventListener('mousemove', onMouseMove);
-                          document.removeEventListener('mouseup', onMouseUp);
-              
-                          // Only update positions if they have changed
-                          if (element.style.left !== initialLeft || element.style.top !== initialTop) {
-                              sendUpdatedPositions();
-                          }
-                      }
-              
-                      document.addEventListener('mousemove', onMouseMove);
-                      document.addEventListener('mouseup', onMouseUp);
-                  };
-              }
+                let offsetX, offsetY;
+                let initialLeft, initialTop;
+            
+                element.onmousedown = function (event) {
+                    if (parseInt(element.style.zIndex, 10) !== currentZIndex || ctrlPressed) return;
+            
+                    event.preventDefault();
+                    event.stopPropagation();
+            
+                    const rect = element.getBoundingClientRect();
+                    offsetX = event.clientX - rect.left;
+                    offsetY = event.clientY - rect.top;
+            
+                    initialLeft = element.style.left;
+                    initialTop = element.style.top;
+            
+                    function onMouseMove(event) {
+                        let newLeft = event.clientX - offsetX;
+                        let newTop = event.clientY - offsetY;
+            
+                        // Ensure the element stays within the container bounds
+                        const parent = element.parentElement;
+                        const parentRect = parent.getBoundingClientRect();
+                        const elementRect = element.getBoundingClientRect();
+            
+                        if (newLeft < 0) {
+                            newLeft = 0;
+                        } else if (newLeft + elementRect.width > parentRect.width) {
+                            newLeft = parentRect.width - elementRect.width;
+                        }
+            
+                        if (newTop < 0) {
+                            newTop = 0;
+                        } else if (newTop + elementRect.height > parentRect.height) {
+                            newTop = parentRect.height - elementRect.height;
+                        }
+            
+                        element.style.left = newLeft + 'px';
+                        element.style.top = newTop + 'px';
+                    }
+            
+                    function onMouseUp() {
+                        document.removeEventListener('mousemove', onMouseMove);
+                        document.removeEventListener('mouseup', onMouseUp);
+            
+                        // Only update positions if they have changed
+                        if (element.style.left !== initialLeft || element.style.top !== initialTop) {
+                            sendUpdatedPositions();
+                        }
+                    }
+            
+                    document.addEventListener('mousemove', onMouseMove);
+                    document.addEventListener('mouseup', onMouseUp);
+                };
+            }
               
               function addResizable(element) {
                   const resizeHandle = document.createElement('div');
