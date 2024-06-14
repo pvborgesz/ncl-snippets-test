@@ -5,48 +5,51 @@ export function activate(context: vscode.ExtensionContext) {
     startNCLScreenWebview(context);
   });
 
-  let generateRegion = vscode.commands.registerCommand('nclScreen.generateRegion', () => {
-    vscode.window.showInformationMessage('Generate Region command executed');
-    // Adicione aqui a lógica para gerar uma nova região
-  });
+  let generateRegion = vscode.commands.registerCommand(
+    'nclScreen.generateRegion',
+    () => {
+      vscode.window.showInformationMessage('Generate Region command executed');
+      // Adicione aqui a lógica para gerar uma nova região
+    },
+  );
 
   context.subscriptions.push(nclScreen);
   context.subscriptions.push(generateRegion);
 }
 function startNCLScreenWebview(context: vscode.ExtensionContext) {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor) {
-      vscode.window.showInformationMessage('Nenhum arquivo aberto.');
-      return;
-    }
-  
-    const document = editor.document;
-    const fileContent = document.getText();
-  
-    const panel = vscode.window.createWebviewPanel(
-      'nclScreen',
-      'NCL Screen',
-      vscode.ViewColumn.One,
-      {
-        enableScripts: true,
-        retainContextWhenHidden: true,
-      },
-    );
-  
-    panel.webview.html = getWebviewContent(fileContent); 
-    panel.webview.onDidReceiveMessage(
-      async message => {
-        switch (message.command) {
-          case 'updatePositions':
-          case 'saveFile':
-            await saveFile(document.uri, message.text, message.regions);
-            break;
-        }
-      },
-      undefined,
-      context.subscriptions,
-    );
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showInformationMessage('Nenhum arquivo aberto.');
+    return;
   }
+
+  const document = editor.document;
+  const fileContent = document.getText();
+
+  const panel = vscode.window.createWebviewPanel(
+    'nclScreen',
+    'NCL Screen',
+    vscode.ViewColumn.One,
+    {
+      enableScripts: true,
+      retainContextWhenHidden: true,
+    },
+  );
+
+  panel.webview.html = getWebviewContent(fileContent);
+  panel.webview.onDidReceiveMessage(
+    async message => {
+      switch (message.command) {
+        case 'updatePositions':
+        case 'saveFile':
+          await saveFile(document.uri, message.text, message.regions);
+          break;
+      }
+    },
+    undefined,
+    context.subscriptions,
+  );
+}
 
 // 1 caso de uso
 // quando eu abrir o documento, se não houver regionBase, cria a regionBase com uma região parent (100%, 100%)
@@ -66,47 +69,62 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
       let newContent = text;
       if (regions.length === 0) {
         const parentRegion = `<region id="parentRegion" width="100%" height="100%" left="0%" top="0%" zIndex="0"></region>`;
-        newContent = newContent.replace('</regionBase>', `  ${parentRegion}\n</regionBase>`);
+        newContent = newContent.replace(
+          '</regionBase>',
+          `  ${parentRegion}\n</regionBase>`,
+        );
       }
   
       // Extract regions from text
-      const regionsAux = newContent.match(/<region id="[^"]*"[^>]*>/g);
+      const regionsAux = newContent.match(/<region id="[^"]*"[^>]*\/?>/g);
       console.log('Regions:', regionsAux);
   
       regionsAux?.forEach((regionTag: string) => {
         // Extract region id
         const regionIdMatch = regionTag.match(/id="([^"]*)"/);
-        if (!regionIdMatch) { return; }
+        if (!regionIdMatch) {
+          return;
+        }
   
         const regionId = regionIdMatch[1];
         const region = regions.find((r: any) => r.id === regionId);
-        if (!region) { return; }
+        if (!region) {
+          return;
+        }
   
         // Ensure values are within 0% to 100%
         const left = Math.max(0, Math.min(100, region.left));
         const top = Math.max(0, Math.min(100, region.top));
         const width = Math.max(0, Math.min(100, region.width));
         const height = Math.max(0, Math.min(100, region.height));
+        const zIndex = region.zIndex !== undefined ? region.zIndex : 0;
   
         // Create a new region tag with updated positions
-        let newRegionTag = regionTag.replace(/left="[^"]*"/, `left="${left}%"`)
+        let newRegionTag = regionTag
+          .replace(/left="[^"]*"/, `left="${left}%"`)
           .replace(/top="[^"]*"/, `top="${top}%"`)
           .replace(/width="[^"]*"/, `width="${width}%"`)
-          .replace(/height="[^"]*"/, `height="${height}%"`);
+          .replace(/height="[^"]*"/, `height="${height}%"`)
+          .replace(/zIndex="[^"]*"/, `zIndex="${zIndex}"`);
   
         // If the attributes do not exist, add them
         if (!newRegionTag.includes('left=')) {
-          newRegionTag = newRegionTag.replace('>', ` left="${left}%"`);
+          newRegionTag = newRegionTag.replace(/>/, ` left="${left}%" >`);
         }
         if (!newRegionTag.includes('top=')) {
-          newRegionTag = newRegionTag.replace('>', ` top="${top}%"`);
+          newRegionTag = newRegionTag.replace(/>/, ` top="${top}%" >`);
         }
         if (!newRegionTag.includes('width=')) {
-          newRegionTag = newRegionTag.replace('>', ` width="${width}%"`);
+          newRegionTag = newRegionTag.replace(/>/, ` width="${width}%" >`);
         }
         if (!newRegionTag.includes('height=')) {
-          newRegionTag = newRegionTag.replace('>', ` height="${height}%"`);
+          newRegionTag = newRegionTag.replace(/>/, ` height="${height}%" >`);
         }
+        if (!newRegionTag.includes('zIndex=')) {
+          newRegionTag = newRegionTag.replace(/>/, ` zIndex="${zIndex}" >`);
+        }
+  
+        newRegionTag = newRegionTag.replace(/ +\/?>/, ' />');
   
         newContent = newContent.replace(regionTag, newRegionTag);
       });
@@ -116,10 +134,12 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
       console.error('Regions data is not an array:', regions);
     }
   }
-
   
-  function getWebviewContent(fileContent: string): string {
-    return `
+  
+  
+
+function getWebviewContent(fileContent: string): string {
+  return `
       <!DOCTYPE html>
       <html lang="pt">
       <head>
@@ -301,7 +321,7 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
                   <strong>Legend:</strong>
                   CTRL + Click to create a region, ALT + Click to delete a region, Click and drag to move a region.
                   Scroll to change the z-index.
-              </div>
+                  </div>
           </div>
           <div id="container"></div> 
   
@@ -362,6 +382,7 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
             function removeRegionFromXML(regionId) {
                 const regionElement = xmlDoc.getElementById(regionId);
                 if (regionElement) {
+                    console.log('Removing region:', regionElement.id);
                     regionElement.parentElement.removeChild(regionElement);
                     sendUpdatedPositions();
                 }
@@ -374,7 +395,7 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
                     updateParentRegionSelect();
                     console.log('Region deleted:', regionId);
                     return;
-                } else if (ctrlPressed) {
+                } else if (ctrlPressed && !altPressed) {
                     const countAllDivs = document.querySelectorAll('.region').length + 1;
                     isDragging = true;
             
@@ -424,7 +445,7 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
             
                     document.addEventListener("mousemove", onMouseMove);
                     document.addEventListener("mouseup", onMouseUp);
-                } else if (e.target.classList.contains("region") || e.target.classList.contains("div-criada")) {
+                } else if (e.target.classList.contains("region") || e.target.classList.contains("div-criada") && !altPressed) {
                     isDragging = true;
                     draggedDiv = e.target;
                     const rect = draggedDiv.getBoundingClientRect();
@@ -448,7 +469,7 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
               });
   
               container.addEventListener("mousemove", function (e) {
-                  if (isDragging) {
+                  if (isDragging ) {
                       if (novaDiv) {
                           const parentDivId = parentRegionSelect.value;
                           const parentDiv = parentDivId ? document.getElementById(parentDivId) : container;
@@ -477,8 +498,6 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
                       }
                   }
               });
-
-            
   
               container.addEventListener("mouseup", function () {
                   isDragging = false;
@@ -517,7 +536,7 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
                 let initialLeft, initialTop;
             
                 element.onmousedown = function (event) {
-                    if (parseInt(element.style.zIndex, 10) !== currentZIndex || ctrlPressed) return;
+                    if (parseInt(element.style.zIndex, 10) !== currentZIndex || ctrlPressed || altPressed) return;
             
                     event.preventDefault();
                     event.stopPropagation();
@@ -622,13 +641,15 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
                       top = Math.max(0, Math.min(100, top));
                       width = Math.max(0, Math.min(100, width));
                       height = Math.max(0, Math.min(100, height));
+                      const zIndex = parseInt(div.style.zIndex, 10)
               
                       const region = {
                           id: div.id,
                           left,
                           top,
                           width,
-                          height
+                          height,
+                          zIndex
                       };
                       console.log('Updated region:', region);                    
                       return region;
@@ -636,7 +657,15 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
 
 
                 let updatedNCL = updateNCLPositions(xmlDoc, regions);
-                updatedNCL = updatedNCL.replace(/xmlns="[^"]*"/g, '');
+
+                updatedNCL = updatedNCL.replace(/^(.*)$/gm, (line) => {
+                    // Remove o xmlns das linhas que não contêm o nó ncl
+                    if (!line.includes('<ncl')) {
+                        return line.replace(/xmlns="[^"]*"/g, '');
+                    }
+                    return line;
+                });
+
                 
                   vscode.postMessage({
                       command: 'saveFile',
@@ -659,11 +688,13 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
                       const top = region.top;
                       const width = region.width;
                       const height = region.height;
+                      const zIndex = region.zIndex;
   
                       updateProperty(regionElement, 'left', left + '%');
                       updateProperty(regionElement, 'top', top + '%');
                       updateProperty(regionElement, 'width', width + '%');
                       updateProperty(regionElement, 'height', height + '%');
+                        updateProperty(regionElement, 'zIndex', zIndex);
                       xmlDoc.querySelectorAll('*').forEach(node => node.removeAttribute('xmlns'));
                   });
                   return new XMLSerializer().serializeToString(xmlDoc);
@@ -771,5 +802,4 @@ async function saveFile(uri: vscode.Uri, text: string, regions: any) {
       </body>
       </html>
     `;
-  }
-  
+}
